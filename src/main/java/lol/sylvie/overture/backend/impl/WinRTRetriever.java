@@ -6,6 +6,7 @@ import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lol.sylvie.overture.backend.MetadataRetriever;
 import lol.sylvie.overture.backend.RetrievalHandler;
+import lol.sylvie.overture.backend.art.ArtProvider;
 import lol.sylvie.overture.backend.art.ByteArrayArtProvider;
 import lol.sylvie.overture.util.Constants;
 import org.apache.commons.lang3.SystemUtils;
@@ -13,6 +14,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -44,9 +46,18 @@ public class WinRTRetriever extends MetadataRetriever {
 
         ResultData resultData = new ResultData(pointer);
 
-        byte[] dataBuffer = resultData.thumbnailData.getByteArray(0, resultData.thumbnailSize);
+        ArtProvider art = null;
+        if (resultData.thumbnailData != null && resultData.thumbnailSize > 0) {
+            byte[] dataBuffer = resultData.thumbnailData.getByteArray(0, resultData.thumbnailSize);
+            art = new ByteArrayArtProvider(dataBuffer);
+        }
+
         long current = resultData.current + (System.currentTimeMillis() - resultData.timestamp);
-        return new Result(resultData.name, resultData.artist, resultData.album, new ByteArrayArtProvider(dataBuffer), resultData.duration, current);
+        return new Result(decodeUtf8(resultData.name), decodeUtf8(resultData.artist), decodeUtf8(resultData.album), art, resultData.duration, current);
+    }
+
+    private static String decodeUtf8(Pointer pointer) {
+        return pointer == null ? "" : pointer.getString(0, StandardCharsets.UTF_8.name());
     }
 
     @Override
@@ -64,9 +75,9 @@ public class WinRTRetriever extends MetadataRetriever {
     }
 
     public static class ResultData extends Structure {
-        public String name;
-        public String artist;
-        public String album;
+        public Pointer name;
+        public Pointer artist;
+        public Pointer album;
         public Pointer thumbnailData;
         public int thumbnailSize;
         public long duration;

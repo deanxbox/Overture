@@ -56,8 +56,14 @@ public class HudHandler {
         graphics.disableScissor();
     }
 
+    private static String safeText(String text) {
+        return text == null ? "" : text;
+    }
+
     private static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
-        MetadataRetriever.Result result = RetrievalHandler.RESULT;
+        // RESULT is updated by the retrieval thread and may be null before metadata is available
+        // or after playback stops. Keep a single volatile snapshot for this render pass.
+        MetadataRetriever.Result result = RetrievalHandler.getResult();
         if (result == null) return;
 
         Minecraft minecraft = Minecraft.getInstance();
@@ -91,35 +97,44 @@ public class HudHandler {
 
         int imageSize = 32;
         int imageX = config.imageOnRight ? nonPaddedWidth - imageSize : 0;
-        graphics.blit(TEXTURE_ID, imageX, 0, imageX + imageSize, imageSize, 0f, 1f, 0f, 1f);
+        if (result.art() == null) {
+            graphics.fill(imageX, 0, imageX + imageSize, imageSize, config.progressBackground.getRGB());
+        } else {
+            graphics.blit(TEXTURE_ID, imageX, 0, imageX + imageSize, imageSize, 0f, 1f, 0f, 1f);
+        }
 
         int textX = config.imageOnRight ? 0 : imageSize + 4;
         int barWidth = nonPaddedWidth - imageSize - 4;
         Font font = minecraft.font;
 
-        String secondaryText = config.preferAlbumName ? result.album().isEmpty() || result.album().equals(result.name()) ? result.artist() : result.album() : result.artist();
+        String name = safeText(result.name());
+        String artist = safeText(result.artist());
+        String album = safeText(result.album());
+        String secondaryText = config.preferAlbumName ? album.isEmpty() || album.equals(name) ? artist : album : artist;
 
         int titleHeight = (int) (font.lineHeight * TITLE_SCALE);
-        overflowText(graphics, result.name(), textX, 0, config.title.getRGB(), barWidth, TITLE_SCALE, 48);
+        overflowText(graphics, name, textX, 0, config.title.getRGB(), barWidth, TITLE_SCALE, 48);
         overflowText(graphics, secondaryText, textX, titleHeight, config.artist.getRGB(), barWidth, 1f, 24);
 
         // Time bar
-        long durationMs = RetrievalHandler.RESULT.duration();
-        long currentMs = Math.clamp(RetrievalHandler.RESULT.current() + (System.currentTimeMillis() - RetrievalHandler.lastFetch), 0, durationMs);
-        float progress = Math.clamp((float) currentMs / durationMs, 0f, 1f);
+        long durationMs = result.duration();
+        if (durationMs > 0) {
+            long currentMs = Math.clamp(result.current() + (System.currentTimeMillis() - RetrievalHandler.lastFetch), 0, durationMs);
+            float progress = Math.clamp((float) currentMs / durationMs, 0f, 1f);
 
-        int barX2 = textX + barWidth;
-        int barY = imageSize - 2;
-        graphics.fill(textX, barY, barX2, imageSize, config.progressBackground.getRGB());
-        graphics.fill(textX, barY, (int) (textX + (barWidth * progress)), imageSize, config.progressForeground.getRGB());
+            int barX2 = textX + barWidth;
+            int barY = imageSize - 2;
+            graphics.fill(textX, barY, barX2, imageSize, config.progressBackground.getRGB());
+            graphics.fill(textX, barY, (int) (textX + (barWidth * progress)), imageSize, config.progressForeground.getRGB());
 
-        int timeTextHeight = (int) (font.lineHeight * TIME_SCALE);
-        int timeTextY = barY - timeTextHeight - 2;
-        textScaled(graphics, formatMillisToMmSs(currentMs), textX, timeTextY, config.progress.getRGB(), TIME_SCALE);
+            int timeTextHeight = (int) (font.lineHeight * TIME_SCALE);
+            int timeTextY = barY - timeTextHeight - 2;
+            textScaled(graphics, formatMillisToMmSs(currentMs), textX, timeTextY, config.progress.getRGB(), TIME_SCALE);
 
-        String durationText = formatMillisToMmSs(durationMs);
-        int durationX = (int) (barX2 - (font.width(durationText) * TIME_SCALE));
-        textScaled(graphics, durationText, durationX, timeTextY, config.duration.getRGB(), TIME_SCALE);
+            String durationText = formatMillisToMmSs(durationMs);
+            int durationX = (int) (barX2 - (font.width(durationText) * TIME_SCALE));
+            textScaled(graphics, durationText, durationX, timeTextY, config.duration.getRGB(), TIME_SCALE);
+        }
 
         poseStack.popMatrix();
         poseStack.popMatrix();

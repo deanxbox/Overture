@@ -63,10 +63,14 @@ public class RetrievalHandler {
     // Actually fetching
     public static Thread THREAD;
 
-    public static volatile MetadataRetriever.Result RESULT = null;
+    private static volatile MetadataRetriever.Result RESULT = null;
     private static volatile boolean closing = false;
 
     public static volatile long lastFetch = 0;
+
+    public static MetadataRetriever.Result getResult() {
+        return RESULT;
+    }
 
     @SuppressWarnings("BusyWait")
     private static void run() {
@@ -80,19 +84,23 @@ public class RetrievalHandler {
                 Configuration config = Configuration.HANDLER.instance();
                 if (!config.metadataRetriever.isAvailable() || !config.metadataRetriever.isSetUp()) continue;
 
-                long nextCheck = (config.smartChecking && minecraft.isWindowActive() && RESULT != null) ?
-                        ((lastFetch - RESULT.current()) + RESULT.duration()) + 1000L : // 1s buffer for loading time
+                MetadataRetriever.Result previousResult = RESULT;
+                long nextCheck = (config.smartChecking && minecraft.isWindowActive() && previousResult != null) ?
+                        ((lastFetch - previousResult.current()) + previousResult.duration()) + 1000L : // 1s buffer for loading time
                         (lastFetch + (long) (config.interval * 1000L));
                 long currentTime = System.currentTimeMillis();
 
                 if (currentTime < nextCheck) continue;
 
-                RESULT = config.metadataRetriever.fetch();
+                MetadataRetriever.Result fetchedResult = config.metadataRetriever.fetch();
+                RESULT = fetchedResult;
                 lastFetch = currentTime;
 
                 // Update image
-                if (RESULT == null || RESULT.art() == null) continue;
-                RESULT.art().load(RESULT);
+                if (fetchedResult == null) continue;
+                var art = fetchedResult.art();
+                if (art == null) continue;
+                art.load(fetchedResult);
             } catch (InterruptedException ignored) {
             } catch (Exception exception) {
                 Constants.LOGGER.error("Error while fetching", exception);
