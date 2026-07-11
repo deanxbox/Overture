@@ -84,7 +84,7 @@ public abstract class GuideScreen extends Screen {
             Component error = step.beforeNext().get();
             if (error == null) page(1);
             else {
-                minecraft.getToastManager().addToast(new SystemToast(SystemToast.SystemToastId.LOW_DISK_SPACE, Component.literal("Error!"), error));
+                minecraft.gui.toastManager().addToast(new SystemToast(SystemToast.SystemToastId.LOW_DISK_SPACE, Component.literal("Error!"), error));
             }
         }).build();
         footer.addChild(nextButton);
@@ -109,7 +109,7 @@ public abstract class GuideScreen extends Screen {
 
     @Override
     public void onClose() {
-        minecraft.setScreen(this.parent);
+        minecraft.gui.setScreen(this.parent);
     }
 
     /**

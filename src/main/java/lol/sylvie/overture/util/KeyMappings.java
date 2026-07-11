@@ -38,7 +38,7 @@ public class KeyMappings {
             }
 
             while (configKeybind.consumeClick()) {
-                client.setScreen(Configuration.HANDLER.instance().createScreen(null));
+                client.gui.setScreen(Configuration.HANDLER.instance().createScreen(null));
             }
         });
     }
