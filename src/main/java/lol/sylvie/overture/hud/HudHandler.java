@@ -1,7 +1,6 @@
 package lol.sylvie.overture.hud;
 
 import com.mojang.blaze3d.platform.Window;
-import com.mojang.blaze3d.vertex.PoseStack;
 import lol.sylvie.overture.backend.MetadataRetriever;
 import lol.sylvie.overture.backend.RetrievalHandler;
 import lol.sylvie.overture.config.Configuration;
@@ -13,10 +12,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.Ease;
 import org.joml.Matrix3x2fStack;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 public class HudHandler {
     private static final Identifier ID = Constants.id("hud_element");
@@ -25,10 +23,13 @@ public class HudHandler {
     private static final float TITLE_SCALE = 1.5f;
     private static final float TIME_SCALE = 0.5f;
 
-    private static String formatMillisToMmSs(long millis) {
-        long minutes = TimeUnit.MILLISECONDS.toMinutes(millis);
-        long seconds = TimeUnit.MILLISECONDS.toSeconds(millis) - TimeUnit.MINUTES.toSeconds(minutes);
-        return String.format("%02d:%02d", minutes, seconds);
+    private static String formatMillis(long millis) {
+        Duration duration = Duration.ofMillis(millis);
+        long hours = duration.toHours();
+        long minutes = duration.toMinutesPart();
+        long seconds = duration.toSecondsPart();
+
+        return hours > 0 ? String.format("%d:%02d:%02d", hours, minutes, seconds) : String.format("%02d:%02d", minutes, seconds);
     }
 
     private static void textScaled(GuiGraphicsExtractor graphics, String text, int x, int y, int color, float scale) {
@@ -129,9 +130,9 @@ public class HudHandler {
 
             int timeTextHeight = (int) (font.lineHeight * TIME_SCALE);
             int timeTextY = barY - timeTextHeight - 2;
-            textScaled(graphics, formatMillisToMmSs(currentMs), textX, timeTextY, config.progress.getRGB(), TIME_SCALE);
+            textScaled(graphics, formatMillis(currentMs), textX, timeTextY, config.progress.getRGB(), TIME_SCALE);
 
-            String durationText = formatMillisToMmSs(durationMs);
+            String durationText = formatMillis(durationMs);
             int durationX = (int) (barX2 - (font.width(durationText) * TIME_SCALE));
             textScaled(graphics, durationText, durationX, timeTextY, config.duration.getRGB(), TIME_SCALE);
         }

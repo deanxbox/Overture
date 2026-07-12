@@ -10,6 +10,7 @@ import org.freedesktop.dbus.connections.impl.DBusConnectionBuilder;
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.freedesktop.dbus.interfaces.DBus;
 import org.freedesktop.dbus.interfaces.Properties;
+import org.freedesktop.dbus.types.UInt64;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -29,6 +30,14 @@ public class MPRISRetriever extends MetadataRetriever {
             this.connection = DBusConnectionBuilder.forSessionBus().build();
         } catch (DBusException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private static long readAsLong(Object object) {
+        if (object instanceof UInt64 uInt64) {
+            return uInt64.longValue();
+        } else {
+            return (Long) object;
         }
     }
 
@@ -62,8 +71,8 @@ public class MPRISRetriever extends MetadataRetriever {
             ArrayList<String> artists = (ArrayList<String>) metadata.get("xesam:artist");
             String artist = artists == null ? album : String.join(", ", artists);
 
-            long length = (Long) metadata.get("mpris:length") / 1000;
-            long position = ((Long) player.Get(INTERFACE_NAME, "Position")) / 1000; // DBus returns Us, we want ms
+            long length = readAsLong(metadata.get("mpris:length")) / 1000;
+            long position = readAsLong(player.Get(INTERFACE_NAME, "Position")) / 1000; // DBus returns Us, we want ms
 
             return new Result(title, artist, album, new URLArt(artUrl), length, position);
         } catch (DBusException e) {
